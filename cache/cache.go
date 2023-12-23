@@ -1,9 +1,12 @@
 package cache
 
-import "log"
+import (
+	"log"
+	"time"
+)
 
 type Cache interface {
-	Set(key string, value interface{})
+	Set(key string, value interface{}, ttl time.Duration)
 	Delete(key string)
 	Get(key string) interface{}
 }
@@ -17,8 +20,14 @@ func NewMemoryCache() *MemoryCache {
 	}
 }
 
-func (m *MemoryCache) Set(key string, value interface{}) {
+func (m *MemoryCache) Set(key string, value interface{}, ttl time.Duration) {
 	m.data[key] = value
+	go func() {
+		select {
+		case <-time.After(ttl):
+			m.Delete(key)
+		}
+	}()
 }
 func (m *MemoryCache) Delete(key string) {
 	_, ok := m.data[key]
