@@ -20,7 +20,7 @@ func main() {
 		log.Fatal("not found")
 	}
 	fmt.Println(result)
-	time.Sleep(time.Second * 6)
+	time.Sleep(time.Second * 6) // wait for 6 second
 	result2, ok2 := db.Get(1)
 	if !ok2 {
 		log.Fatal("not found")
