@@ -1,46 +1,74 @@
 package cache
 
 import (
-	"log"
+	"sync"
 	"time"
 )
 
-type Cache interface {
-	Set(key string, value interface{}, ttl time.Duration)
-	Delete(key string)
-	Get(key string) interface{}
-}
-type MemoryCache struct {
-	data map[string]interface{}
+type value struct {
+	value  interface{}
+	expiry *time.Time
 }
 
-func NewMemoryCache() *MemoryCache {
-	return &MemoryCache{
-		data: make(map[string]interface{}),
+type Cache struct {
+	ticker *time.Ticker
+	data   sync.Map
+	ttl    time.Duration
+}
+
+func NewCache(ttl time.Duration) *Cache {
+	db := &Cache{
+		ticker: time.NewTicker(time.Second * 1),
+		data:   sync.Map{},
+		ttl:    ttl,
+	}
+
+	go db.backgroundCacheCleaner()
+
+	return db
+}
+
+func (db *Cache) backgroundCacheCleaner() {
+	for {
+		<-db.ticker.C
+		db.data.Range(func(key, v interface{}) bool {
+			vv, ok := v.(*value)
+			if !ok {
+				return true
+			}
+
+			if vv.expiry == nil {
+				return true
+			}
+
+			if time.Now().After(*vv.expiry) {
+				db.data.Delete(key)
+			}
+
+			return true
+		})
 	}
 }
 
-func (m *MemoryCache) Set(key string, value interface{}, ttl time.Duration) {
-	m.data[key] = value
-	go func() {
-		select {
-		case <-time.After(ttl):
-			m.Delete(key)
-		}
-	}()
+func (db *Cache) Set(key interface{}, v interface{}) {
+	t := time.Now().Add(db.ttl)
+	db.data.Store(key, &value{v, &t})
 }
-func (m *MemoryCache) Delete(key string) {
-	_, ok := m.data[key]
+
+func (db *Cache) Get(key interface{}) (result interface{}, ok bool) {
+	load, ok := db.data.Load(key)
 	if !ok {
-		log.Fatal("not found cache")
+		return nil, false
 	}
-	delete(m.data, key)
+
+	vv, ok := load.(*value)
+	if !ok {
+		return nil, false
+	}
+
+	return vv.value, true
 }
-func (m *MemoryCache) Get(key string) interface{} {
-	value, ok := m.data[key]
-	if !ok {
-		log.Fatal("not found cache")
-		return nil
-	}
-	return value
+
+func (db *Cache) Delete(key interface{}) {
+	db.data.Delete(key)
 }

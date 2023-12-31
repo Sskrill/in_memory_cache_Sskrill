@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/Sskrill/in_memory_cache/cache"
@@ -9,17 +10,17 @@ import (
 
 // Example
 func main() {
-
-	cache := cache.NewMemoryCache()
-
-	cache.Set("Oleg", 45, time.Second*5)
-
-	Oleg := cache.Get("Oleg")
-
-	fmt.Println(Oleg)
-	time.Sleep(time.Second * 6) //We imagined that we had a delay
-
-	Oleg = cache.Get("Oleg") // exit code (not found info )
-	fmt.Println(Oleg)
-
+	db := cache.NewCache(time.Second * 5)
+	db.Set(1, "DDD")
+	result, ok := db.Get(1)
+	if !ok {
+		log.Fatal("not found")
+	}
+	fmt.Println(result)
+	time.Sleep(time.Second * 6)
+	result2, ok2 := db.Get(1)
+	if !ok2 {
+		log.Fatal("not found")
+	}
+	fmt.Println(result2)
 }
